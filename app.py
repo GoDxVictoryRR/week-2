@@ -12,7 +12,7 @@ uploaded_file = st.file_uploader("Upload a tree image (leaf, bark, etc.)", type=
 # Load model
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("tree_model.h5")
+    model = tf.keras.models.load_model("tree_species_model.h5")
     return model
 
 model = load_model()
@@ -36,3 +36,4 @@ if uploaded_file is not None:
     confidence = 100 * np.max(prediction)
 
     st.success(f"✅ Predicted Species: **{predicted_label}** ({confidence:.2f}% confidence)")
+
