@@ -2,25 +2,28 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
+import os
 
-# App title and layout
 st.set_page_config(page_title="Tree Species Classifier 🌳", layout="centered")
-st.title("🌲 Tree Species Prediction App")
+st.title("🌿 Tree Species Classifier")
 
-# Load model (cached to avoid reloading on each run)
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("tree_species_model.h5")
-    return model
+    model_path = "tree_species_model.h5"
+    if not os.path.exists(model_path):
+        st.error("❌ Model file not found! Please make sure 'tree_species_model.h5' is in the repo.")
+        raise FileNotFoundError("Model file not found.")
+    
+    try:
+        model = tf.keras.models.load_model(model_path, compile=False)
+        return model
+    except Exception as e:
+        st.error("⚠️ Could not load the model. Check format or compatibility.")
+        st.exception(e)
+        return None
 
-try:
-    model = load_model()
-except Exception as e:
-    st.error("❌ Failed to load the model. Please check the file `tree_species_model.h5`.")
-    st.exception(e)
-    st.stop()
+model = load_model()
 
-# Class labels (adjust if needed)
 class_names = [
     'amla', 'asopalav', 'babul', 'bamboo', 'banyan', 'bili', 'cactus', 'champa',
     'coconut', 'garmalo', 'gulmohor', 'gunda', 'jamun', 'kanchan', 'kesudo', 'khajur',
@@ -28,28 +31,25 @@ class_names = [
     'saptaparni', 'shirish', 'simlo', 'sitafal', 'sonmahor', 'sugarcane', 'vad'
 ]
 
-# Upload image
-uploaded_file = st.file_uploader("📤 Upload a tree image", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("📤 Upload a tree image (leaf/bark)", type=["jpg", "jpeg", "png"])
 
-if uploaded_file:
+if model is not None and uploaded_file is not None:
     try:
-        image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="📷 Uploaded Image", use_column_width=True)
-
-        # Preprocess image
-        image = image.resize((224, 224))
+        st.image(uploaded_file, caption="📷 Uploaded Image", use_column_width=True)
+        image = Image.open(uploaded_file).resize((224, 224)).convert("RGB")
         img_array = np.expand_dims(np.array(image) / 255.0, axis=0)
-
-        # Predict
+        
         prediction = model.predict(img_array)
-        predicted_class = class_names[np.argmax(prediction)]
-        confidence = np.max(prediction) * 100
+        predicted_index = np.argmax(prediction)
+        predicted_label = class_names[predicted_index]
+        confidence = prediction[0][predicted_index] * 100
 
-        # Display result
-        st.success(f"✅ Predicted: **{predicted_class}**")
+        st.success(f"✅ Predicted Species: **{predicted_label}**")
         st.info(f"🔍 Confidence: **{confidence:.2f}%**")
     except Exception as e:
-        st.error("⚠️ Error during prediction.")
+        st.error("🚨 Error during prediction:")
         st.exception(e)
+elif model is None:
+    st.warning("⚠️ Model could not be loaded.")
 else:
-    st.info("👆 Upload a tree image to get started.")
+    st.info("📂 Please upload a tree image to get started.")
