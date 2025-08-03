@@ -9,22 +9,32 @@ st.title("🌿 Tree Species Classifier")
 
 @st.cache_resource
 def load_model():
-    model_path = "tree_species_model.h5"
-    if not os.path.exists(model_path):
-        st.error("❌ Model file not found! Please make sure 'tree_species_model.h5' is in the repo.")
-        raise FileNotFoundError("Model file not found.")
+    # Preferred: SavedModel format directory
+    model_path_dir = "tree_species_model"
+    # Fallback: .h5 file
+    model_path_h5 = "tree_species_model.h5"
 
-    try:
-        with tf.keras.utils.custom_object_scope({}):  # Handle possible custom layers
-            model = tf.keras.models.load_model(model_path)
-        model.build(input_shape=(None, 224, 224, 3))  # Ensure model is built
-        return model
-    except Exception as e:
-        st.error("❌ Failed to load model:")
-        st.exception(e)
-        raise
+    if os.path.isdir(model_path_dir):
+        st.info(f"📂 Loading model from directory: `{model_path_dir}`")
+        model = tf.keras.models.load_model(model_path_dir)
+    elif os.path.isfile(model_path_h5):
+        st.warning(f"⚠️ Model directory not found; loading fallback .h5 model: `{model_path_h5}`")
+        model = tf.keras.models.load_model(model_path_h5)
+    else:
+        st.error("❌ Model file/folder not found! Please upload either `tree_species_model/` folder or `tree_species_model.h5` file to your repo.")
+        raise FileNotFoundError("No model file or directory found.")
+    
+    # Optional: show model architecture summary in logs
+    print("✅ Loaded model summary:")
+    model.summary(print_fn=lambda x: print(x))
+    return model
 
-model = load_model()
+try:
+    model = load_model()
+except Exception as e:
+    st.error("❌ Failed to load model:")
+    st.exception(e)
+    st.stop()
 
 class_names = [
     'amla', 'asopalav', 'babul', 'bamboo', 'banyan', 'bili', 'cactus', 'champa',
@@ -38,9 +48,13 @@ uploaded_file = st.file_uploader("📤 Upload a tree image (leaf/bark)", type=["
 if uploaded_file is not None:
     try:
         st.image(uploaded_file, caption="📷 Uploaded Image", use_column_width=True)
+        st.write("🔄 Processing...")
+
+        # Preprocess image
         image = Image.open(uploaded_file).resize((224, 224)).convert("RGB")
         img_array = np.expand_dims(np.array(image) / 255.0, axis=0)
 
+        # Predict
         prediction = model.predict(img_array)
         predicted_index = np.argmax(prediction)
         predicted_label = class_names[predicted_index]
